@@ -1,0 +1,45 @@
+Predictive model for how wella player will do next game
+
+Players recent performance
+    List of players per team need to update for each team - https://www.teamrankings.com/nba/team/atlanta-hawks/roster
+    PPG - https://www.teamrankings.com/nba/player-stat/points
+    FG percentage - https://www.teamrankings.com/nba/player-stat/field-goal-percentage
+    Minutes played - https://www.teamrankings.com/nba/player-stat/minutes-played
+    Usage rate
+
+Opponent's Defense
+    Defensive effeciency - https://www.teamrankings.com/nba/stat/defensive-efficiency
+    Guard/forward Defense
+    Points allowed - https://www.teamrankings.com/nba/stat/opponent-points-per-game
+
+Opponent Offensive statistics
+    Pace of play
+    Offensive rating
+
+Player specific factors
+    injury status
+    Rest/back to back games
+    Matchup history
+    NBS schedule - https://www.teamrankings.com/nba/schedules/season/
+
+Team factors
+    Tean scoring needs
+    Team overall performance
+    Team possesions per game - https://www.teamrankings.com/nba/stat/possessions-per-game
+
+
+Advance statistics
+    True Shooting Percentage - https://www.teamrankings.com/nba/player-stat/ts-percentage
+    Effective field goal Percentage - https://www.teamrankings.com/nba/player-stat/efg-percentage
+    Assist-to-Turnover ratio - https://www.teamrankings.com/nba/player-stat/assist-to-turnover-ratio
+    Opponent True Shooting Percentage - https://www.teamrankings.com/nba/stat/opponent-shooting-pct
+
+
+External factors
+    Home vs away
+    Team Win/Loss trend
+    Win percentae all games - https://www.teamrankings.com/nba/stat/win-pct-all-games
+    Win percentage close games - https://www.teamrankings.com/nba/stat/win-pct-close-games
+    Opponent win percentage all games - https://www.teamrankings.com/nba/stat/opponent-win-pct-all-games
+    Opponent win percentage close games - https://www.teamrankings.com/nba/stat/opponent-win-pct-close-games
+
