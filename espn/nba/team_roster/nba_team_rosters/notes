@@ -1,0 +1,2 @@
+update this file to create team roster by season, 
+then update player splits script to pull in splits data for player splits every season they have been in nba and create a folder for each season under the player labeled "player name, season"
