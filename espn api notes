@@ -1,0 +1,16 @@
+http://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams
+
+ "x-uri": "/nba/player/splits?id=4594268&_slug_=anthony-edwards"
+
+ "path": "/nba/player/splits"
+
+ "originalPathName": "/nba/player/splits",
+            "query": {
+                "id": "4594268",
+                "_slug_": "anthony-edwards"
+
+
+"tbl": [
+                        {
+                            "dspNm": "split",
+                            "row": [
