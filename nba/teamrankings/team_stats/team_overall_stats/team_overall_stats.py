@@ -1,3 +1,8 @@
+# What this script does
+# This script fetches team stats fromm team rankings for each nba team
+# creates a folder for each team with team name
+# creates a script for each player to have their own playername_stats.py script
+
 # generate_team_stats_scripts.py
 import os
 import csv
