@@ -1,0 +1,7 @@
+git remote -v             # Check your current remote names and URLs
+git branch                # Check which branch you're on
+git checkout test-nba     # Switch to the test-nba branch
+git status                # See the status of your changes
+git add .                 # Stage all changes (if any)
+git commit -m "Your commit message"  # Commit staged changes
+git push origin test-nba  # Push test-nba branch to the origin remote
