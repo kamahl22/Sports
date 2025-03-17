@@ -14,12 +14,16 @@ BASE_DIR = "/Users/kamahl/Sports/scripts/nba/teamrankings/team_stats/team_win_st
 os.makedirs(BASE_DIR, exist_ok=True)
 
 def fetch_and_save_oklahoma_city_thunder_win_trends():
-    """Fetch and print the Oklahoma City Thunder win trends from TeamRankings."""
+    """Fetch, save, and print the Oklahoma City Thunder win trends from TeamRankings."""
     url = "https://www.teamrankings.com/nba/team/oklahoma-city-thunder/win-trends"
     
-    # Set up headless Chrome
+    # Set up headless Chrome with enhanced options
     options = Options()
-    options.headless = True  # Run in headless mode (no browser popup)
+    options.headless = True  # Primary headless setting (Selenium 4+)
+    options.add_argument('--headless')  # Legacy headless argument for compatibility
+    options.add_argument('--no-sandbox')  # Improve stability in some environments
+    options.add_argument('--disable-dev-shm-usage')  # Reduce resource usage
+    options.add_argument('--disable-gpu')  # Disable GPU (not needed in headless)
     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0")
     
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
@@ -32,13 +36,13 @@ def fetch_and_save_oklahoma_city_thunder_win_trends():
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CLASS_NAME, "tr-table"))
         )
-        # Additional wait to ensure data is populated
-        time.sleep(2)
+        time.sleep(2)  # Additional wait for data
     except Exception as e:
         print(f"Error waiting for table: {e}")
         driver.quit()
         return None
     
+    # Find all tables
     tables = driver.find_elements(By.TAG_NAME, "table")
     print(f"Number of tables found: {len(tables)}")
     
@@ -49,16 +53,18 @@ def fetch_and_save_oklahoma_city_thunder_win_trends():
     
     data = []
     for table in tables:
-        if "tr-table" in table.get_attribute("class"):  # Target the correct table
-            rows = table.find_elements(By.TAG_NAME, "tr")
-            print(f"Number of rows in table: {len(rows)}")
-            
+        if "tr-table" in table.get_attribute("class"):
+            print(f"Processing win trends table")
+            rows = table.find_elements(By.TAG_NAME, "tr")  # Fixed: By_TAG_NAME -> By.TAG_NAME
             for row in rows[1:]:  # Skip header row
-                cols = row.find_elements(By.TAG_NAME, "td")  # Fixed: By.TAG_NAME
+                cols = row.find_elements(By.TAG_NAME, "td")  # Fixed: By_TAG_NAME -> By.TAG_NAME
                 if len(cols) >= 5:
-                    row_data = [col.text.strip() for col in cols[:5]]
-                    print(f"Row data: {row_data}")
-                    data.append(row_data)
+                    trend = cols[0].text.strip()
+                    win_record = cols[1].text.strip()
+                    win_pct = cols[2].text.strip()
+                    mov = cols[3].text.strip()
+                    ats_plus_minus = cols[4].text.strip()
+                    data.append([trend, win_record, win_pct, mov, ats_plus_minus])
     
     driver.quit()
     
@@ -66,23 +72,30 @@ def fetch_and_save_oklahoma_city_thunder_win_trends():
         print("No data extracted from tables.")
         return None
     
-    # Create DataFrame
-    df = pd.DataFrame(data, columns=["Trend", "Win Record", "Win %", "MOV", "ATS +/-"])
+    # Create DataFrame with raw headers
+    headers = ["Trend", "Win Record", "Win %", "MOV", "ATS +/-"]
+    df = pd.DataFrame(data, columns=headers)
     
     # Save to CSV
-    csv_filename = os.path.join(BASE_DIR, "oklahoma-city-thunder", "oklahoma-city-thunder_win_trends.csv")
+    team_name_lower = "oklahoma-city-thunder"
+    csv_filename = os.path.join(BASE_DIR, team_name_lower, "oklahoma-city-thunder_win_trends.csv")
     os.makedirs(os.path.dirname(csv_filename), exist_ok=True)
     df.to_csv(csv_filename, index=False)
     print(f"CSV file saved: {csv_filename}")
     
+    # Save to Excel
+    excel_filename = os.path.join(BASE_DIR, team_name_lower, "oklahoma-city-thunder_win_trends.xlsx")
+    df.to_excel(excel_filename, index=False)
+    print(f"Excel file saved: {excel_filename}")
+    
     # Print formatted table
     print(f"\nWin Trends for Oklahoma City Thunder")
-    col_widths = [max(len(str(row[i])) for row in data + [df.columns]) for i in range(5)]
+    col_widths = [max(len(str(row[i])) for row in data + [headers]) for i in range(5)]
     top_border = "┌" + "─".join("─" * (w + 2) for w in col_widths) + "┐"
     bottom_border = "└" + "─".join("─" * (w + 2) for w in col_widths) + "┘"
     separator = "├" + "─".join("─" * (w + 2) for w in col_widths) + "┤"
     
-    header_row = "│ " + " │ ".join(h.center(w) for h, w in zip(df.columns, col_widths)) + " │"
+    header_row = "│ " + " │ ".join(h.center(w) for h, w in zip(headers, col_widths)) + " │"
     print(top_border)
     print(header_row)
     print(separator)

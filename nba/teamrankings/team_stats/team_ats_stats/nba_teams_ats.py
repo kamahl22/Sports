@@ -10,7 +10,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 
 # Base directory where team folders will be created
-BASE_DIR = "/Users/kamahl/Sports/scripts/nba/teamrankings/team_stats/team_ats_stats/nba_teams"  # Adjust path as needed
+BASE_DIR = "/Users/kamahl/Sports/scripts/nba/teamrankings/team_stats/team_ats_stats/nba_teams"
 os.makedirs(BASE_DIR, exist_ok=True)
 
 # List of NBA teams
@@ -25,7 +25,7 @@ nba_teams = [
     "houston-rockets", "oklahoma-city-thunder"
 ]
 
-# Template for the team ATS script
+# Template for the team ATS script (corrected By.TAG_NAME)
 ATS_TEMPLATE = '''import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -60,39 +60,36 @@ def fetch_and_save_{team_name_underscore}_ats_stats():
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CLASS_NAME, "tr-table"))
         )
-        # Additional wait to ensure data is populated
-        time.sleep(2)
+        time.sleep(2)  # Additional wait for data
     except Exception as e:
         print(f"Error waiting for table: {{e}}")
-        driver.quit()
-        return None
-    
-    tables = driver.find_elements(By.TAG_NAME, "table")
-    print(f"Number of tables found: {{len(tables)}}")
-    
-    if not tables:
-        print("No tables found.")
-        driver.quit()
-        return None
-    
-    data = []
-    for table in tables:
-        if "tr-table" in table.get_attribute("class"):  # Target the correct table
-            rows = table.find_elements(By.TAG_NAME, "tr")
-            print(f"Number of rows in table: {{len(rows)}}")
+        data = [["Error Loading Page", "N/A", "N/A", "N/A", "N/A"]]
+    else:
+        tables = driver.find_elements(By.TAG_NAME, "table")
+        print(f"Number of tables found: {{len(tables)}}")
+        
+        if not tables:
+            print("No tables found.")
+            data = [["No Tables Found", "N/A", "N/A", "N/A", "N/A"]]
+        else:
+            data = []
+            for table in tables:
+                if "tr-table" in table.get_attribute("class"):
+                    rows = table.find_elements(By.TAG_NAME, "tr")  # Fixed: By.TAG_NAME
+                    print(f"Number of rows in table: {{len(rows)}}")
+                    
+                    for row in rows[1:]:  # Skip header row
+                        cols = row.find_elements(By.TAG_NAME, "td")  # Fixed: By.TAG_NAME
+                        if len(cols) >= 5:
+                            row_data = [col.text.strip() for col in cols[:5]]
+                            print(f"Row data: {{row_data}}")
+                            data.append(row_data)
             
-            for row in rows[1:]:  # Skip header row
-                cols = row.find_elements(By.TAG_NAME, "td")
-                if len(cols) >= 5:
-                    row_data = [col.text.strip() for col in cols[:5]]
-                    print(f"Row data: {{row_data}}")
-                    data.append(row_data)
+            if not data:
+                print("No data extracted from tables.")
+                data = [["No Data Available", "N/A", "N/A", "N/A", "N/A"]]
     
     driver.quit()
-    
-    if not data:
-        print("No data extracted from tables.")
-        return None
     
     # Create DataFrame
     df = pd.DataFrame(data, columns=["Trend", "ATS Record", "Cover %", "MOV", "ATS +/-"])
@@ -102,6 +99,11 @@ def fetch_and_save_{team_name_underscore}_ats_stats():
     os.makedirs(os.path.dirname(csv_filename), exist_ok=True)
     df.to_csv(csv_filename, index=False)
     print(f"CSV file saved: {{csv_filename}}")
+    
+    # Save to Excel
+    excel_filename = os.path.join(BASE_DIR, "{team_name}", "{team_name}_ats_trends.xlsx")
+    df.to_excel(excel_filename, index=False)
+    print(f"Excel file saved: {{excel_filename}}")
     
     # Print formatted table
     print(f"\\nATS Trends for {team_name_display}")
@@ -118,7 +120,7 @@ def fetch_and_save_{team_name_underscore}_ats_stats():
     for row in data:
         row_str = "│ " + " │ ".join(str(item).ljust(w) for item, w in zip(row, col_widths)) + " │"
         print(row_str)
-    print(bottom_border)
+    print(bottom_border)  # Should be bottom_border
     
     return df
 

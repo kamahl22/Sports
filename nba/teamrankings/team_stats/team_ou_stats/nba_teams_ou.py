@@ -1,5 +1,3 @@
-# This script fetches over under stats from teamrankings for nba teams
-
 import os
 import time
 from selenium import webdriver
@@ -12,7 +10,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 
 # Base directory where team folders will be created
-BASE_DIR = "/Users/kamahl/Sports/scripts/nba/teamrankings/team_stats/team_ou_stats/nba_teams"  # Adjust path as needed
+BASE_DIR = "/Users/kamahl/Sports/scripts/nba/teamrankings/team_stats/team_ou_stats/nba_teams"
 os.makedirs(BASE_DIR, exist_ok=True)
 
 # List of NBA teams
@@ -27,7 +25,7 @@ nba_teams = [
     "houston-rockets", "oklahoma-city-thunder"
 ]
 
-# Template for the team Over/Under script
+# Template for the team Over/Under script (raw table output, fixed By.TAG_NAME)
 OU_TEMPLATE = '''import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -43,13 +41,17 @@ import os
 BASE_DIR = "{base_dir}"
 os.makedirs(BASE_DIR, exist_ok=True)
 
-def fetch_and_save_{team_name_underscore}_ou_stats():
-    """Fetch and print the {team_name_display} Over/Under trends from TeamRankings."""
+def fetch_and_save_{team_name_underscore}_over_under_trends():
+    """Fetch, save, and print the {team_name_display} Over/Under trends from TeamRankings."""
     url = "https://www.teamrankings.com/nba/team/{team_name}/over-under-trends"
     
-    # Set up headless Chrome
+    # Set up headless Chrome with enhanced options
     options = Options()
-    options.headless = True  # Run in headless mode (no browser popup)
+    options.headless = True  # Primary headless setting (Selenium 4+)
+    options.add_argument('--headless')  # Legacy headless argument for compatibility
+    options.add_argument('--no-sandbox')  # Improve stability in some environments
+    options.add_argument('--disable-dev-shm-usage')  # Reduce resource usage
+    options.add_argument('--disable-gpu')  # Disable GPU (not needed in headless)
     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0")
     
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
@@ -68,6 +70,7 @@ def fetch_and_save_{team_name_underscore}_ou_stats():
         driver.quit()
         return None
     
+    # Find all tables
     tables = driver.find_elements(By.TAG_NAME, "table")
     print(f"Number of tables found: {{len(tables)}}")
     
@@ -79,15 +82,17 @@ def fetch_and_save_{team_name_underscore}_ou_stats():
     data = []
     for table in tables:
         if "tr-table" in table.get_attribute("class"):
-            rows = table.find_elements(By.TAG_NAME, "tr")
-            print(f"Number of rows in table: {{len(rows)}}")
-            
+            print(f"Processing Over/Under trends table")
+            rows = table.find_elements(By.TAG_NAME, "tr")  # Fixed: By.TAG_NAME
             for row in rows[1:]:  # Skip header row
-                cols = row.find_elements(By.TAG_NAME, "td")
+                cols = row.find_elements(By.TAG_NAME, "td")  # Fixed: By.TAG_NAME
                 if len(cols) >= 5:
-                    row_data = [col.text.strip() for col in cols[:5]]
-                    print(f"Row data: {{row_data}}")
-                    data.append(row_data)
+                    trend = cols[0].text.strip()
+                    over_record = cols[1].text.strip()
+                    over_pct = cols[2].text.strip()
+                    under_pct = cols[3].text.strip()
+                    total_plus_minus = cols[4].text.strip()
+                    data.append([trend, over_record, over_pct, under_pct, total_plus_minus])
     
     driver.quit()
     
@@ -95,23 +100,30 @@ def fetch_and_save_{team_name_underscore}_ou_stats():
         print("No data extracted from tables.")
         return None
     
-    # Create DataFrame
-    df = pd.DataFrame(data, columns=["Trend", "Over/Under Record", "Over/Under %", "MOV", "Over/Under +/-"])
+    # Create DataFrame with raw headers
+    headers = ["Trend", "Over Record", "Over %", "Under %", "Total +/-"]
+    df = pd.DataFrame(data, columns=headers)
     
     # Save to CSV
-    csv_filename = os.path.join(BASE_DIR, "{team_name}", "{team_name}_over_under_trends.csv")
+    team_name_lower = "{team_name}"
+    csv_filename = os.path.join(BASE_DIR, team_name_lower, "{team_name}_over_under_trends.csv")
     os.makedirs(os.path.dirname(csv_filename), exist_ok=True)
     df.to_csv(csv_filename, index=False)
     print(f"CSV file saved: {{csv_filename}}")
     
+    # Save to Excel
+    excel_filename = os.path.join(BASE_DIR, team_name_lower, "{team_name}_over_under_trends.xlsx")
+    df.to_excel(excel_filename, index=False)
+    print(f"Excel file saved: {{excel_filename}}")
+    
     # Print formatted table
     print(f"\\nOver/Under Trends for {team_name_display}")
-    col_widths = [max(len(str(row[i])) for row in data + [df.columns]) for i in range(5)]
+    col_widths = [max(len(str(row[i])) for row in data + [headers]) for i in range(5)]
     top_border = "┌" + "─".join("─" * (w + 2) for w in col_widths) + "┐"
     bottom_border = "└" + "─".join("─" * (w + 2) for w in col_widths) + "┘"
     separator = "├" + "─".join("─" * (w + 2) for w in col_widths) + "┤"
     
-    header_row = "│ " + " │ ".join(h.center(w) for h, w in zip(df.columns, col_widths)) + " │"
+    header_row = "│ " + " │ ".join(h.center(w) for h, w in zip(headers, col_widths)) + " │"
     print(top_border)
     print(header_row)
     print(separator)
@@ -119,12 +131,12 @@ def fetch_and_save_{team_name_underscore}_ou_stats():
     for row in data:
         row_str = "│ " + " │ ".join(str(item).ljust(w) for item, w in zip(row, col_widths)) + " │"
         print(row_str)
-    print(bottom_border)
+    print(bottom_border)  # Should be bottom_border
     
     return df
 
 if __name__ == "__main__":
-    fetch_and_save_{team_name_underscore}_ou_stats()
+    fetch_and_save_{team_name_underscore}_over_under_trends()
 '''
 
 def generate_ou_scripts():

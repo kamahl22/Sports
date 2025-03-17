@@ -1,22 +1,41 @@
 import os
-import csv
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+import pandas as pd
 
 # Base directory where team folders will be created
 BASE_DIR = "/Users/kamahl/Sports/scripts/nba/teamrankings/team_stats/team_ats_stats/nba_teams"
 os.makedirs(BASE_DIR, exist_ok=True)
 
-# Template for the ATS trends script with Selenium
+# List of NBA teams
+nba_teams = [
+    "cleveland-cavaliers", "los-angeles-lakers", "miami-heat", "chicago-bulls", 
+    "new-york-knicks", "golden-state-warriors", "brooklyn-nets", "boston-celtics",
+    "atlanta-hawks", "charlotte-hornets", "chicago-bulls", "dallas-mavericks", 
+    "denver-nuggets", "detroit-pistons", "indiana-pacers", "los-angeles-clippers", 
+    "memphis-grizzlies", "minnesota-timberwolves", "new-orleans-pelicans", "orlando-magic", 
+    "philadelphia-76ers", "phoenix-suns", "portland-trail-blazers", "sacramento-kings", 
+    "san-antonio-spurs", "toronto-raptors", "utah-jazz", "washington-wizards", 
+    "houston-rockets", "oklahoma-city-thunder"
+]
+
+# Template for the team ATS script (raw table output, fixed By.TAG_NAME)
 ATS_TEMPLATE = '''import time
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import csv
-import os
-import pandas as pd
 from webdriver_manager.chrome import ChromeDriverManager
+import pandas as pd
+import os
 
 # Base directory for saving files
 BASE_DIR = "{base_dir}"
@@ -26,137 +45,102 @@ def fetch_and_save_{team_name_underscore}_ats_trends():
     """Fetch, save, and print the {team_name_display} ATS trends from TeamRankings."""
     url = "https://www.teamrankings.com/nba/team/{team_name}/ats-trends"
     
-    # Set up Selenium WebDriver
+    # Set up headless Chrome with enhanced options
     options = Options()
-    options.headless = False  # Set to True for headless mode if desired
+    options.headless = True  # Primary headless setting (Selenium 4+)
+    options.add_argument('--headless')  # Legacy headless argument for compatibility
+    options.add_argument('--no-sandbox')  # Improve stability in some environments
+    options.add_argument('--disable-dev-shm-usage')  # Reduce resource usage
+    options.add_argument('--disable-gpu')  # Disable GPU (not needed in headless)
+    options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0")
+    
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
+    print(f"Fetching ATS trends for {team_name_display}")
+    driver.get(url)
+    
+    # Wait for the table to load (up to 10 seconds)
     try:
-        driver.get(url)
-        
-        # Wait for the table to load (up to 20 seconds)
-        WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.XPATH, '//table[contains(@class, "tr-table")]//tbody/tr[not(contains(., "Loading"))]'))
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "tr-table"))
         )
-        
-        # Give extra time for stability
-        time.sleep(2)
-        
-        # Find all tables
-        tables = driver.find_elements(By.XPATH, '//table[contains(@class, "tr-table")]')
-        print(f"Number of tables found: {{len(tables)}}")
-        
-        if not tables:
-            print("No tables found. Dumping page snippet for debugging:")
-            print(driver.page_source[:2000])
-            return None
-        
-        all_trends = {{}}
-        
-        # Process tables
-        for table in tables:
-            # Determine category
-            section_header = table.find_element(By.XPATH, './preceding-sibling::h2')
-            category = section_header.text.strip() if section_header and "Trends" in section_header.text else "ATS Trends"
-            print(f"Processing table category: {{category}}")
-            
-            trends = []
-            rows = table.find_elements(By.TAG_NAME, "tr")
-            for row in rows:
-                cols = row.find_elements(By.TAG_NAME, "td")
-                if len(cols) >= 5:  # Ensure at least 5 columns
+        time.sleep(2)  # Additional wait for data
+    except Exception as e:
+        print(f"Error waiting for table: {{e}}")
+        driver.quit()
+        return None
+    
+    # Find all tables
+    tables = driver.find_elements(By.TAG_NAME, "table")
+    print(f"Number of tables found: {{len(tables)}}")
+    
+    if not tables:
+        print("No tables found.")
+        driver.quit()
+        return None
+    
+    data = []
+    for table in tables:
+        if "tr-table" in table.get_attribute("class"):
+            print(f"Processing ATS trends table")
+            rows = table.find_elements(By.TAG_NAME, "tr")  # Fixed: By.TAG_NAME
+            for row in rows[1:]:  # Skip header row
+                cols = row.find_elements(By.TAG_NAME, "td")  # Fixed: By.TAG_NAME
+                if len(cols) >= 5:
                     trend = cols[0].text.strip()
                     ats_record = cols[1].text.strip()
-                    cover_percent = cols[2].text.strip()
+                    cover_pct = cols[2].text.strip()
                     mov = cols[3].text.strip()
                     ats_plus_minus = cols[4].text.strip()
-                    trends.append((trend, ats_record, cover_percent, mov, ats_plus_minus))
-            if trends:
-                all_trends[category] = trends
-            else:
-                print(f"No valid rows found in table for category: {{category}}. Dumping table HTML:")
-                print(table.get_attribute('outerHTML')[:1000])
-        
-        if not all_trends:
-            print("No ATS trends data extracted. Check table structure or page content.")
-            return None
-        
-        # Save to CSV and Excel
-        team_name_lower = "{team_name}"
-        csv_filename = os.path.join(BASE_DIR, team_name_lower, "{team_name}_ats_trends.csv")
-        excel_filename = os.path.join(BASE_DIR, team_name_lower, "{team_name}_ats_trends.xlsx")
-        
-        # Prepare data for saving
-        headers = ["Category", "Trend", "ATS Record", "Cover %", "MOV", "ATS +/-"]
-        all_rows = []
-        for category, trends_list in all_trends.items():
-            for trend in trends_list:
-                all_rows.append([category] + list(trend))
-        
-        # Save to CSV
-        os.makedirs(os.path.dirname(csv_filename), exist_ok=True)
-        with open(csv_filename, mode="w", newline="", encoding="utf-8") as file:
-            writer = csv.writer(file)
-            writer.writerow(headers)
-            writer.writerows(all_rows)
-        print(f"CSV file saved: {{csv_filename}}")
-        
-        # Save to Excel
-        os.makedirs(os.path.dirname(excel_filename), exist_ok=True)
-        df = pd.DataFrame(all_rows, columns=headers)
-        df.to_excel(excel_filename, index=False)
-        print(f"Excel file saved: {{excel_filename}}")
-        
-        # Print trends in an Excel-like format
-        for category, trends_list in all_trends.items():
-            print(f"\\n{{category}}")
-            if not trends_list:
-                print("No trends found for this category.")
-                continue
-            
-            col_widths = [max(len(str(item)) for item in [trend[0] for trend in trends_list] + ["Trend"]),
-                          max(len(str(item)) for item in [trend[1] for trend in trends_list] + ["ATS Record"]),
-                          max(len(str(item)) for item in [trend[2] for trend in trends_list] + ["Cover %"]),
-                          max(len(str(item)) for item in [trend[3] for trend in trends_list] + ["MOV"]),
-                          max(len(str(item)) for item in [trend[4] for trend in trends_list] + ["ATS +/-"])]
-            
-            top_border = "┌" + "─".join("─" * (w + 2) for w in col_widths) + "┐"
-            bottom_border = "└" + "─".join("─" * (w + 2) for w in col_widths) + "┘"
-            separator = "├" + "─".join("─" * (w + 2) for w in col_widths) + "┤"
-            
-            header_row = "│ " + " │ ".join(h.center(w) for h, w in zip(["Trend", "ATS Record", "Cover %", "MOV", "ATS +/-"], col_widths)) + " │"
-            print(top_border)
-            print(header_row)
-            print(separator)
-            
-            for trend in trends_list:
-                row = "│ " + " │ ".join(str(item).ljust(w) for item, w in zip(trend, col_widths)) + " │"
-                print(row)
-            
-            print(bottom_border)  # Should be bottom_border
-        
-    finally:
-        driver.quit()
+                    data.append([trend, ats_record, cover_pct, mov, ats_plus_minus])
     
-    return all_trends
+    driver.quit()
+    
+    if not data:
+        print("No data extracted from tables.")
+        return None
+    
+    # Create DataFrame with raw headers
+    headers = ["Trend", "ATS Record", "Cover %", "MOV", "ATS +/-"]
+    df = pd.DataFrame(data, columns=headers)
+    
+    # Save to CSV
+    team_name_lower = "{team_name}"
+    csv_filename = os.path.join(BASE_DIR, team_name_lower, "{team_name}_ats_trends.csv")
+    os.makedirs(os.path.dirname(csv_filename), exist_ok=True)
+    df.to_csv(csv_filename, index=False)
+    print(f"CSV file saved: {{csv_filename}}")
+    
+    # Save to Excel
+    excel_filename = os.path.join(BASE_DIR, team_name_lower, "{team_name}_ats_trends.xlsx")
+    df.to_excel(excel_filename, index=False)
+    print(f"Excel file saved: {{excel_filename}}")
+    
+    # Print formatted table
+    print(f"\\nATS Trends for {team_name_display}")
+    col_widths = [max(len(str(row[i])) for row in data + [headers]) for i in range(5)]
+    top_border = "┌" + "─".join("─" * (w + 2) for w in col_widths) + "┐"
+    bottom_border = "└" + "─".join("─" * (w + 2) for w in col_widths) + "┘"
+    separator = "├" + "─".join("─" * (w + 2) for w in col_widths) + "┤"
+    
+    header_row = "│ " + " │ ".join(h.center(w) for h, w in zip(headers, col_widths)) + " │"
+    print(top_border)
+    print(header_row)
+    print(separator)
+    
+    for row in data:
+        row_str = "│ " + " │ ".join(str(item).ljust(w) for item, w in zip(row, col_widths)) + " │"
+        print(row_str)
+    print(bottom_border)  # Should be bottom_border
+    
+    return df
 
 if __name__ == "__main__":
-    trends = fetch_and_save_{team_name_underscore}_ats_trends()
+    fetch_and_save_{team_name_underscore}_ats_trends()
 '''
 
-# List of NBA team names
-TEAM_LIST = [
-    "atlanta-hawks", "boston-celtics", "brooklyn-nets", "charlotte-hornets", "chicago-bulls",
-    "cleveland-cavaliers", "dallas-mavericks", "denver-nuggets", "detroit-pistons", "golden-state-warriors",
-    "houston-rockets", "indiana-pacers", "los-angeles-clippers", "los-angeles-lakers", "memphis-grizzlies",
-    "miami-heat", "milwaukee-bucks", "minnesota-timberwolves", "new-orleans-pelicans", "new-york-knicks",
-    "oklahoma-city-thunder", "orlando-magic", "philadelphia-76ers", "phoenix-suns", "portland-trail-blazers",
-    "sacramento-kings", "san-antonio-spurs", "toronto-raptors", "utah-jazz", "washington-wizards"
-]
-
 def generate_ats_scripts():
-    """Generate ATS trends scripts for each NBA team."""
-    for team_name in TEAM_LIST:
+    for team_name in nba_teams:
         team_folder = os.path.join(BASE_DIR, team_name)
         os.makedirs(team_folder, exist_ok=True)
         
