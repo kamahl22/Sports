@@ -5,7 +5,7 @@ import os
 import pandas as pd
 
 # Base directory for saving files
-BASE_DIR = "/Users/kamahl/Sports/scripts/nba/teamrankings/team_stats/team_overall_stats/teams"
+BASE_DIR = "/Users/kamahl/Sports/scripts/nba/teamrankings/team_stats/team_overall_stats/nba_teams"
 os.makedirs(BASE_DIR, exist_ok=True)
 
 def fetch_and_save_new_orleans_pelicans_stats():

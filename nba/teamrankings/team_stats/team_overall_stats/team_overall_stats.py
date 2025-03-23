@@ -141,12 +141,14 @@ if __name__ == "__main__":
 
 # List of NBA team names (slug format used by TeamRankings)
 TEAM_LIST = [
-    "atlanta-hawks", "boston-celtics", "brooklyn-nets", "charlotte-hornets", "chicago-bulls",
-    "cleveland-cavaliers", "dallas-mavericks", "denver-nuggets", "detroit-pistons", "golden-state-warriors",
-    "houston-rockets", "indiana-pacers", "los-angeles-clippers", "los-angeles-lakers", "memphis-grizzlies",
-    "miami-heat", "milwaukee-bucks", "minnesota-timberwolves", "new-orleans-pelicans", "new-york-knicks",
-    "oklahoma-city-thunder", "orlando-magic", "philadelphia-76ers", "phoenix-suns", "portland-trail-blazers",
-    "sacramento-kings", "san-antonio-spurs", "toronto-raptors", "utah-jazz", "washington-wizards"
+    "cleveland-cavaliers", "los-angeles-lakers", "miami-heat", "chicago-bulls",
+    "new-york-knicks", "golden-state-warriors", "brooklyn-nets", "boston-celtics",
+    "atlanta-hawks", "charlotte-hornets", "dallas-mavericks",
+    "denver-nuggets", "detroit-pistons", "indiana-pacers", "los-angeles-clippers", "milwaukee-bucks",
+    "memphis-grizzlies", "minnesota-timberwolves", "new-orleans-pelicans", "orlando-magic",
+    "philadelphia-76ers", "phoenix-suns", "portland-trail-blazers", "sacramento-kings",
+    "san-antonio-spurs", "toronto-raptors", "utah-jazz", "washington-wizards",
+    "houston-rockets", "oklahoma-city-thunder"
 ]
 
 def generate_team_stats_scripts():
