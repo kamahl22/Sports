@@ -1,0 +1,252 @@
+import pandas as pd
+import os
+import shutil
+from datetime import datetime
+from nba_api.stats.static import players
+from nba_api.stats.endpoints import playergamelog, commonallplayers
+
+# Define the season and output directory
+SEASON = "2024-25"
+OUTPUT_DIR = "/Users/kamahl/Sports/scripts/nba_api/nba_players/player_stats_2024-2025"
+
+# Check if OUTPUT_DIR exists as a file and handle it
+if os.path.exists(OUTPUT_DIR):
+    if os.path.isfile(OUTPUT_DIR):
+        # If OUTPUT_DIR is a file, rename it to avoid conflict
+        backup_path = OUTPUT_DIR + "_backup_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+        print(f"Warning: '{OUTPUT_DIR}' exists as a file, not a directory. Renaming it to '{backup_path}'.")
+        shutil.move(OUTPUT_DIR, backup_path)
+# Now create the directory
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+def team_name_to_slug(team_name):
+    """
+    Convert team name to a simplified slug format (e.g., 'Phoenix Suns' -> 'suns').
+    Uses the team nickname instead of the full name.
+    """
+    # Dictionary mapping full team names to their nicknames (simplified slugs)
+    team_nicknames = {
+        "Atlanta Hawks": "hawks",
+        "Boston Celtics": "celtics",
+        "Brooklyn Nets": "nets",
+        "Charlotte Hornets": "hornets",
+        "Chicago Bulls": "bulls",
+        "Cleveland Cavaliers": "cavaliers",
+        "Dallas Mavericks": "mavericks",
+        "Denver Nuggets": "nuggets",
+        "Detroit Pistons": "pistons",
+        "Golden State Warriors": "warriors",
+        "Houston Rockets": "rockets",
+        "Indiana Pacers": "pacers",
+        "Los Angeles Clippers": "clippers",
+        "Los Angeles Lakers": "lakers",
+        "Memphis Grizzlies": "grizzlies",
+        "Miami Heat": "heat",
+        "Milwaukee Bucks": "bucks",
+        "Minnesota Timberwolves": "timberwolves",
+        "New Orleans Pelicans": "pelicans",
+        "New York Knicks": "knicks",
+        "Oklahoma City Thunder": "thunder",
+        "Orlando Magic": "magic",
+        "Philadelphia 76ers": "76ers",
+        "Phoenix Suns": "suns",
+        "Portland Trail Blazers": "trail-blazers",
+        "Sacramento Kings": "kings",
+        "San Antonio Spurs": "spurs",
+        "Toronto Raptors": "raptors",
+        "Utah Jazz": "jazz",
+        "Washington Wizards": "wizards"
+    }
+    # Return the nickname if the team is found, otherwise convert the team name to a slug
+    return team_nicknames.get(team_name, team_name.lower().replace(" ", "-"))
+
+def fetch_active_players():
+    """
+    Fetch all active players for the 2024-2025 season using CommonAllPlayers.
+    Returns a dictionary mapping player names to their IDs and teams.
+    """
+    print("Fetching active players for the 2024-2025 season...")
+    try:
+        all_players = commonallplayers.CommonAllPlayers(
+            season=SEASON, is_only_current_season=1
+        )
+        players_df = all_players.get_data_frames()[0]
+        # Filter for active players with a team
+        active_players = players_df[
+            (players_df["TEAM_NAME"].notnull()) & (players_df["TEAM_NAME"] != "")
+        ]
+        # Create a dictionary of player names to IDs and teams
+        player_dict = {
+            row["DISPLAY_FIRST_LAST"]: {
+                "id": row["PERSON_ID"],
+                "team": row["TEAM_NAME"],
+                "team_slug": team_name_to_slug(row["TEAM_NAME"])
+            }
+            for _, row in active_players.iterrows()
+        }
+        print(f"Found {len(player_dict)} active players.")
+        return player_dict
+    except Exception as e:
+        print(f"Error fetching active players: {e}")
+        return {}
+
+def fetch_player_stats(player_id, player_name, season=SEASON):
+    """
+    Fetch game-by-game stats for a player for the 2024-2025 season using PlayerGameLog.
+    Returns a DataFrame with the player's game logs.
+    """
+    print(f"Fetching stats for {player_name} (ID: {player_id})...")
+    try:
+        gamelog = playergamelog.PlayerGameLog(
+            player_id=player_id,
+            season=season,
+            season_type_all_star="Regular Season"
+        )
+        gamelog_df = gamelog.get_data_frames()[0]
+        if gamelog_df.empty:
+            print(f"No game data found for {player_name} in the 2024-2025 season.")
+            return None
+        return gamelog_df
+    except Exception as e:
+        print(f"Error fetching stats for {player_name}: {e}")
+        return None
+
+def calculate_season_stats(gamelog_df, player_name, team_name):
+    """
+    Calculate season totals and averages from the game log DataFrame.
+    Returns a dictionary with the player's season stats.
+    """
+    if gamelog_df is None or gamelog_df.empty:
+        return None
+
+    # Calculate totals
+    games_played = len(gamelog_df)
+    total_points = gamelog_df["PTS"].sum()
+    total_rebounds = gamelog_df["REB"].sum()
+    total_assists = gamelog_df["AST"].sum()
+    total_steals = gamelog_df["STL"].sum()
+    total_blocks = gamelog_df["BLK"].sum()
+    total_turnovers = gamelog_df["TOV"].sum()
+    total_minutes = gamelog_df["MIN"].sum()
+
+    # Calculate averages (per game)
+    avg_points = total_points / games_played if games_played > 0 else 0
+    avg_rebounds = total_rebounds / games_played if games_played > 0 else 0
+    avg_assists = total_assists / games_played if games_played > 0 else 0
+    avg_steals = total_steals / games_played if games_played > 0 else 0
+    avg_blocks = total_blocks / games_played if games_played > 0 else 0
+    avg_turnovers = total_turnovers / games_played if games_played > 0 else 0
+    avg_minutes = total_minutes / games_played if games_played > 0 else 0
+
+    return {
+        "Player": player_name,
+        "Team": team_name,
+        "GamesPlayed": games_played,
+        "TotalPoints": total_points,
+        "TotalRebounds": total_rebounds,
+        "TotalAssists": total_assists,
+        "TotalSteals": total_steals,
+        "TotalBlocks": total_blocks,
+        "TotalTurnovers": total_turnovers,
+        "TotalMinutes": total_minutes,
+        "AvgPointsPerGame": round(avg_points, 1),
+        "AvgReboundsPerGame": round(avg_rebounds, 1),
+        "AvgAssistsPerGame": round(avg_assists, 1),
+        "AvgStealsPerGame": round(avg_steals, 1),
+        "AvgBlocksPerGame": round(avg_blocks, 1),
+        "AvgTurnoversPerGame": round(avg_turnovers, 1),
+        "AvgMinutesPerGame": round(avg_minutes, 1),
+    }
+
+def main():
+    # Fetch all active players
+    player_dict = fetch_active_players()
+    if not player_dict:
+        print("No players found. Exiting.")
+        return
+
+    # Ask user if they want stats for a specific player or all players
+    print("\nDo you want stats for a specific player or all players?")
+    print("1. Specific player")
+    print("2. All players")
+    choice = input("Enter your choice (1 or 2): ").strip()
+
+    if choice == "1":
+        # List some players for the user to choose from
+        print("\nHere are some active players:")
+        for i, player_name in enumerate(list(player_dict.keys())[:10], 1):
+            print(f"{i}. {player_name} ({player_dict[player_name]['team']})")
+        print("... (and many more)")
+
+        player_name = input("\nEnter the player's full name (e.g., LeBron James): ").strip()
+        if player_name not in player_dict:
+            print(f"Player '{player_name}' not found. Please check the name and try again.")
+            return
+
+        player_id = player_dict[player_name]["id"]
+        team_name = player_dict[player_name]["team"]
+        team_slug = player_dict[player_name]["team_slug"]
+        gamelog_df = fetch_player_stats(player_id, player_name)
+        season_stats = calculate_season_stats(gamelog_df, player_name, team_name)
+
+        if season_stats:
+            # Create a subdirectory for the team
+            team_dir = os.path.join(OUTPUT_DIR, team_slug)
+            os.makedirs(team_dir, exist_ok=True)
+
+            # Create a subdirectory for the player within the team folder
+            player_folder = player_name.replace(" ", "_").lower()
+            player_dir = os.path.join(team_dir, player_folder)
+            os.makedirs(player_dir, exist_ok=True)
+
+            # Convert to DataFrame and save to CSV in the player's folder
+            stats_df = pd.DataFrame([season_stats])
+            output_file = os.path.join(player_dir, f"{player_folder}_season_stats.csv")
+            stats_df.to_csv(output_file, index=False)
+            print(f"\nStats for {player_name} saved to {output_file}")
+            print("\nSeason Stats:")
+            print(stats_df.to_string(index=False))
+        else:
+            print(f"No stats available for {player_name}.")
+
+    elif choice == "2":
+        # Fetch stats for all players
+        all_stats = []
+        for player_name, info in player_dict.items():
+            player_id = info["id"]
+            team_name = info["team"]
+            team_slug = info["team_slug"]
+            gamelog_df = fetch_player_stats(player_id, player_name)
+            season_stats = calculate_season_stats(gamelog_df, player_name, team_name)
+            if season_stats:
+                # Create a subdirectory for the team
+                team_dir = os.path.join(OUTPUT_DIR, team_slug)
+                os.makedirs(team_dir, exist_ok=True)
+
+                # Create a subdirectory for the player within the team folder
+                player_folder = player_name.replace(" ", "_").lower()
+                player_dir = os.path.join(team_dir, player_folder)
+                os.makedirs(player_dir, exist_ok=True)
+
+                # Save individual player's stats
+                player_stats_df = pd.DataFrame([season_stats])
+                player_output_file = os.path.join(player_dir, f"{player_folder}_season_stats.csv")
+                player_stats_df.to_csv(player_output_file, index=False)
+
+                all_stats.append(season_stats)
+
+        if all_stats:
+            # Save combined stats for all players
+            stats_df = pd.DataFrame(all_stats)
+            output_file = os.path.join(OUTPUT_DIR, "all_players_stats_2024_25.csv")
+            stats_df.to_csv(output_file, index=False)
+            print(f"\nStats for all players saved to {output_file}")
+            print("\nFirst few rows of season stats:")
+            print(stats_df.head().to_string(index=False))
+        else:
+            print("No stats available for any players.")
+    else:
+        print("Invalid choice. Exiting.")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,15 @@
+The selected endpoints provide a comprehensive set of data for building an AI sports betting prediction chatbot:
+
+Game Data: LeagueGameFinder, LeagueGameLog, PlayByPlay, Scoreboard
+
+Team Stats: TeamGameLog, TeamDashLineups, TeamDashboardByGeneralSplits, TeamDashboardByShootingSplits, TeamVsPlayer
+
+Player Stats: PlayerGameLog, PlayerDashboardByGeneralSplits, PlayerVsPlayer, ShotChartDetail, LeagueLeaders
+
+Advanced Metrics: LeagueDashTeamStats, LeagueDashPlayerStats, LeagueDashTeamPtShot
+
+Static Data: CommonAllPlayers, CommonTeamRoster, TeamDetails
+
+Situational Data: TeamPlayerOnOffSummary, TeamDashboardByGameSplits
+
+These endpoints cover historical data, real-time data, team and player stats, and advanced analytics, making them well-suited for training predictive models and providing actionable insights for sports betting. By combining data from these endpoints and applying machine learning techniques, you can build a robust chatbot capable of delivering accurate and informative betting predictions.

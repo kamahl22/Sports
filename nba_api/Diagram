@@ -1,0 +1,34 @@
+[User Interaction Layer]
+    |
+    | (User Query: "Will the Suns beat the Lakers tonight?")
+    v
+[Chatbot Interface]
+    | (Processes user query, routes to appropriate module)
+    | (e.g., Game Outcome Prediction, Player Prop Prediction)
+    v
+[Prediction Engine]
+    | (Selects appropriate model based on query type)
+    | (e.g., Game Outcome Model, Player Prop Model)
+    | (Fetches real-time data if needed)
+    v
+[Machine Learning Models]
+    | (Trained models for game outcomes, point spreads, player props)
+    | (e.g., XGBoost for game outcomes, Neural Network for player props)
+    | (Inputs: Processed features from Data Processing Layer)
+    | (Outputs: Predictions with confidence scores)
+    v
+[Data Processing Layer]
+    | (Feature engineering, data aggregation, real-time updates)
+    | (Inputs: Historical and real-time data from Data Collection Layer)
+    | (Outputs: Features like team net rating, player averages, etc.)
+    v
+[Data Collection Layer]
+    | (Fetches data from APIs: NBA API for now, extensible to NFL, MLB, etc.)
+    | (Historical Data: LeagueGameFinder, PlayerGameLog, etc.)
+    | (Real-Time Data: Scoreboard, PlayByPlay, etc.)
+    | (Static Data: CommonAllPlayers, CommonTeamRoster, etc.)
+    v
+[Data Storage Layer]
+    | (Stores raw data, processed features, and model outputs)
+    | (e.g., SQLite for raw data, Redis for real-time caching)
+    | (Ensures quick access for predictions and updates)
